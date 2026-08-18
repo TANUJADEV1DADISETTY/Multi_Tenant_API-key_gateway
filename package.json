@@ -1,0 +1,18 @@
+{
+  "name": "multi-tenant-api-gateway",
+  "version": "1.0.0",
+  "description": "Multi-Tenant API Key Gateway with Rate Limiting and Rotation using Redis & PostgreSQL",
+  "main": "src/app.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "node --watch src/app.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "ioredis": "^5.4.1",
+    "pg": "^8.12.0"
+  }
+}
