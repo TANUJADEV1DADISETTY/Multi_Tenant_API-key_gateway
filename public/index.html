@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Multi-Tenant API Key Gateway | Audit & Management Console</title>
+
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-logo">⚡</div>
+        <div class="brand-text">
+          <h2>ShieldGateway</h2>
+          <span class="badge badge-accent">Multi-Tenant v1.0</span>
+        </div>
+      </div>
+
+      <nav class="nav-menu">
+        <a href="#overview" class="nav-item active" id="nav-overview">
+          <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+          Overview & Metrics
+        </a>
+        <a href="#keys" class="nav-item" id="nav-keys">
+          <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+          API Keys Management
+        </a>
+        <a href="#playground" class="nav-item" id="nav-playground">
+          <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          Rate Limiter Tester
+        </a>
+        <a href="#audit" class="nav-item" id="nav-audit">
+          <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+          Audit Logs
+        </a>
+      </nav>
+
+      <div class="tenant-selector-box">
+        <label for="tenantSelect">Selected Tenant</label>
+        <select id="tenantSelect" class="form-control">
+          <!-- Dynamically populated -->
+        </select>
+      </div>
+
+      <div class="system-status">
+        <div class="status-indicator online"></div>
+        <span>Redis Limiter Active</span>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <!-- Top Header -->
+      <header class="top-header">
+        <div class="header-title">
+          <h1>API Key Management & Gateway Dashboard</h1>
+          <p>Multi-Tenant Key Security, Redis Sliding-Window Rate Limiting & Graceful Key Rotation</p>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-primary" onclick="openCreateKeyModal()">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            Generate API Key
+          </button>
+        </div>
+      </header>
+
+      <!-- Dashboard Sections Container -->
+      <div class="content-body">
+        
+        <!-- SECTION 1: Overview & Metrics -->
+        <section id="overview" class="dashboard-section active">
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-icon keys-icon">🔑</div>
+              <div class="stat-info">
+                <span class="stat-label">Active API Keys</span>
+                <h3 id="statActiveKeys" class="stat-value">0</h3>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-icon success-icon">✅</div>
+              <div class="stat-info">
+                <span class="stat-label">Successful Requests (200 OK)</span>
+                <h3 id="statSuccessRequests" class="stat-value">0</h3>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-icon limited-icon">⏳</div>
+              <div class="stat-info">
+                <span class="stat-label">Rate-Limited Requests (429)</span>
+                <h3 id="statLimitedRequests" class="stat-value">0</h3>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-icon total-icon">📊</div>
+              <div class="stat-info">
+                <span class="stat-label">Total Audit Events</span>
+                <h3 id="statTotalAudit" class="stat-value">0</h3>
+              </div>
+            </div>
+          </div>
+
+          <!-- Usage Chart Container -->
+          <div class="card chart-card margin-top">
+            <div class="card-header">
+              <div>
+                <h3>Request Traffic Analytics</h3>
+                <p class="subtitle">Request volume over the last hour by HTTP Status Code</p>
+              </div>
+              <button class="btn btn-sm btn-secondary" onclick="loadDashboardData()">Refresh Data</button>
+            </div>
+            <div class="card-body">
+              <canvas id="usageChart" height="90"></canvas>
+            </div>
+          </div>
+        </section>
+
+        <!-- SECTION 2: API Keys Management -->
+        <section id="keys" class="dashboard-section">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <h3>Tenant API Keys</h3>
+                <p class="subtitle">Keys are securely hashed using SHA-256 in storage. Plaintext is only exposed once upon creation.</p>
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="openCreateKeyModal()">+ Create Key</button>
+            </div>
+
+            <div class="card-body padding-none">
+              <div class="table-wrapper">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Key ID</th>
+                      <th>Masked Key</th>
+                      <th>Rate Limit</th>
+                      <th>Status</th>
+                      <th>Created At</th>
+                      <th>Expires At / Grace Period</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="keysTableBody">
+                    <!-- Populated dynamically -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- SECTION 3: Rate Limiter & Rotation Tester / Playground -->
+        <section id="playground" class="dashboard-section">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <h3>Interactive Rate Limiter & Key Rotation Tester</h3>
+                <p class="subtitle">Simulate real-time gateway requests to test Redis sliding-window enforcement and grace periods.</p>
+              </div>
+            </div>
+
+            <div class="card-body">
+              <div class="grid-2col">
+                <!-- Test Configuration Panel -->
+                <div class="panel">
+                  <h4 class="panel-title">1. Test Configuration</h4>
+                  <div class="form-group">
+                    <label for="testKeySelect">Select API Key for Testing</label>
+                    <select id="testKeySelect" class="form-control"></select>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="customKeyInput">Or Paste Full API Key</label>
+                    <input type="text" id="customKeyInput" class="form-control" placeholder="sk_live_..." />
+                  </div>
+
+                  <div class="form-group">
+                    <label>Target Endpoint</label>
+                    <input type="text" class="form-control" value="GET /api/protected" readonly />
+                  </div>
+
+                  <div class="action-buttons">
+                    <button class="btn btn-primary" onclick="sendSingleRequest()">Send Single Request</button>
+                    <button class="btn btn-warning" onclick="sendBurstRequests()">Simulate Burst (6 Requests)</button>
+                  </div>
+                </div>
+
+                <!-- Live Test Output Log Panel -->
+                <div class="panel">
+                  <div class="panel-header-flex">
+                    <h4 class="panel-title">2. Gateway Console Logs</h4>
+                    <button class="btn btn-xs btn-secondary" onclick="clearConsoleLog()">Clear</button>
+                  </div>
+
+                  <div id="consoleLog" class="console-box">
+                    <div class="log-line info">[System] Ready for request simulation...</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- SECTION 4: Audit Logs Table -->
+        <section id="audit" class="dashboard-section">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <h3>System Audit Logs</h3>
+                <p class="subtitle">Real-time persistent audit record of all authenticated requests entering the API gateway.</p>
+              </div>
+              <button class="btn btn-sm btn-secondary" onclick="loadAuditLogs()">Refresh Audit Trail</button>
+            </div>
+
+            <div class="card-body padding-none">
+              <div class="table-wrapper">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Log ID</th>
+                      <th>Key ID</th>
+                      <th>Masked Key</th>
+                      <th>Endpoint</th>
+                      <th>Status Code</th>
+                      <th>Timestamp</th>
+                    </tr>
+                  </thead>
+                  <tbody id="auditTableBody">
+                    <!-- Populated dynamically -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- MODAL 1: Create API Key -->
+  <div id="createKeyModal" class="modal-backdrop hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Generate New API Key</h3>
+        <button class="modal-close" onclick="closeModal('createKeyModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="createKeyForm" onsubmit="handleCreateKey(event)">
+          <div class="form-group">
+            <label for="rateLimitInput">Rate Limit (Requests per Minute)</label>
+            <input type="number" id="rateLimitInput" class="form-control" value="100" min="1" max="10000" required />
+            <small class="form-help">Default is 100 req/min. For testing rate limits, set to 5.</small>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" onclick="closeModal('createKeyModal')">Cancel</button>
+            <button type="submit" class="btn btn-primary">Generate Key</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 2: Key Generated Success (Show Plaintext ONCE) -->
+  <div id="keyCreatedModal" class="modal-backdrop hidden">
+    <div class="modal-card modal-lg">
+      <div class="modal-header">
+        <h3 class="text-success">🔑 API Key Generated Successfully</h3>
+        <button class="modal-close" onclick="closeModal('keyCreatedModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-warning">
+          <strong>⚠️ IMPORTANT SECURITY WARNING:</strong> Save this API key now! This plaintext key will NEVER be shown again and cannot be recovered from the database.
+        </div>
+
+        <div class="key-display-box">
+          <input type="text" id="createdKeyDisplay" class="form-control key-code-input" readonly />
+          <button class="btn btn-secondary" onclick="copyCreatedKey()">Copy Key</button>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-primary" onclick="closeModal('keyCreatedModal')">I Have Saved My Key</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 3: Rotate Key Modal -->
+  <div id="rotateKeyModal" class="modal-backdrop hidden">
+    <div class="modal-card modal-lg">
+      <div class="modal-header">
+        <h3>Rotate API Key</h3>
+        <button class="modal-close" onclick="closeModal('rotateKeyModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p>Rotating an API key generates a brand new key while leaving the old key active for a <strong>1-minute grace period</strong> to allow smooth client migration.</p>
+        
+        <input type="hidden" id="rotateTargetKeyId" />
+        
+        <div id="rotateStepInitial">
+          <p>Are you sure you want to rotate key <span id="rotateTargetMasked" class="badge badge-neutral"></span>?</p>
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" onclick="closeModal('rotateKeyModal')">Cancel</button>
+            <button type="button" class="btn btn-warning" onclick="executeRotateKey()">Rotate Key Now</button>
+          </div>
+        </div>
+
+        <div id="rotateStepResult" class="hidden">
+          <div class="alert alert-success">
+            <strong>✅ Key Rotated!</strong> Here is your new API key:
+          </div>
+
+          <div class="key-display-box">
+            <input type="text" id="rotatedNewKeyDisplay" class="form-control key-code-input" readonly />
+            <button class="btn btn-secondary" onclick="copyRotatedKey()">Copy Key</button>
+          </div>
+
+          <div class="alert alert-info margin-top">
+            <strong>⏳ Grace Period Active:</strong> The old key will remain valid for 60 seconds before automatically expiring with 401 Unauthorized.
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" class="btn btn-primary" onclick="closeModal('rotateKeyModal')">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 4: Revoke Key Confirmation -->
+  <div id="revokeKeyModal" class="modal-backdrop hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="text-danger">Revoke API Key</h3>
+        <button class="modal-close" onclick="closeModal('revokeKeyModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p>Are you sure you want to immediately revoke key <span id="revokeTargetMasked" class="badge badge-danger"></span>?</p>
+        <p class="text-muted">This action will deactivate the key immediately. Any subsequent request with this key will fail with <code>401 Unauthorized</code>.</p>
+        <input type="hidden" id="revokeTargetKeyId" />
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('revokeKeyModal')">Cancel</button>
+          <button type="button" class="btn btn-danger" onclick="executeRevokeKey()">Revoke Key</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
